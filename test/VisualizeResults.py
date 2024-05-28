@@ -30,6 +30,7 @@ def evaluateModel(args, model, up, image_list):
     with torch.no_grad():
         for i, imgName in enumerate(image_list):
             img = cv2.imread(imgName)
+            img = cv2.resize(img, (2048, 1024))
             img_orig = np.copy(img) if args.overlay else None
 
             img = ((img - mean) / std) / 255.0
