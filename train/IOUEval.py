@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-class IOUEval:
+class iouEval:
     """
     Class to evaluate IoU and related metrics for image segmentation tasks.
 
