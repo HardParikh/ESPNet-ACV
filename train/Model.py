@@ -1,15 +1,12 @@
 import torch
 import torch.nn as nn
 
-__author__ = "Sachin Mehta"
-
 class CBR(nn.Module):
     '''
     This class defines the convolution layer with batch normalization and PReLU activation
     '''
     def __init__(self, nIn, nOut, kSize, stride=1):
         '''
-
         :param nIn: number of input channels
         :param nOut: number of output channels
         :param kSize: kernel size
@@ -17,9 +14,7 @@ class CBR(nn.Module):
         '''
         super().__init__()
         padding = int((kSize - 1)/2)
-        #self.conv = nn.Conv2d(nIn, nOut, kSize, stride=stride, padding=padding, bias=False)
         self.conv = nn.Conv2d(nIn, nOut, (kSize, kSize), stride=stride, padding=(padding, padding), bias=False)
-        #self.conv1 = nn.Conv2d(nOut, nOut, (1, kSize), stride=1, padding=(0, padding), bias=False)
         self.bn = nn.BatchNorm2d(nOut, eps=1e-03)
         self.act = nn.PReLU(nOut)
 
@@ -29,7 +24,6 @@ class CBR(nn.Module):
         :return: transformed feature map
         '''
         output = self.conv(input)
-        #output = self.conv1(output)
         output = self.bn(output)
         output = self.act(output)
         return output
@@ -158,7 +152,6 @@ class DownSamplerB(nn.Module):
         add4 = add3 + d16
 
         combine = torch.cat([d1, add1, add2, add3, add4],1)
-        #combine_in_out = input + combine
         output = self.bn(combine)
         output = self.act(output)
         return output
@@ -245,7 +238,7 @@ class InputProjectionA(nn.Module):
 
 class ESPNet_Encoder(nn.Module):
     '''
-    This class defines the ESPNet-C network in the paper
+    This class defines the ESPNet-C network
     '''
     def __init__(self, classes=20, p=5, q=3):
         '''
@@ -317,23 +310,20 @@ class ESPNet(nn.Module):
         :param classes: number of classes in the dataset. Default is 20 for the cityscapes
         :param p: depth multiplier
         :param q: depth multiplier
-        :param encoderFile: pretrained encoder weights. Recall that we first trained the ESPNet-C and then attached the
-                            RUM-based light weight decoder. See paper for more details.
+        :param encoderFile: encoder weights.
         '''
         super().__init__()
         self.encoder = ESPNet_Encoder(classes, p, q)
         if encoderFile != None:
             self.encoder.load_state_dict(torch.load(encoderFile))
             print('Encoder loaded!')
-        # load the encoder modules
         self.modules = []
         for i, m in enumerate(self.encoder.children()):
             self.modules.append(m)
 
-        # light-weight decoder
         self.level3_C = C(128 + 3, classes, 1, 1)
         self.br = nn.BatchNorm2d(classes, eps=1e-03)
-        self.conv = CBR(19 + classes, classes, 3, 1)
+        self.conv = CBR(16 + classes, classes, 3, 1)
 
         self.up_l3 = nn.Sequential(nn.ConvTranspose2d(classes, classes, 2, stride=2, padding=0, output_padding=0, bias=False))
         self.combine_l2_l3 = nn.Sequential(BR(2*classes), DilatedParllelResidualBlockB(2*classes , classes, add=False))
@@ -371,12 +361,12 @@ class ESPNet(nn.Module):
 
         output2_cat = self.modules[9](torch.cat([output2_0, output2], 1)) # concatenate for feature map width expansion
 
-        output2_c = self.up_l3(self.br(self.modules[10](output2_cat))) #RUM
+        output2_c = self.up_l3(self.br(self.modules[10](output2_cat)))
 
         output1_C = self.level3_C(output1_cat) # project to C-dimensional space
         comb_l2_l3 = self.up_l2(self.combine_l2_l3(torch.cat([output1_C, output2_c], 1))) #RUM
 
-        concat_features = self.conv(torch.cat([comb_l2_l3, output0_cat], 1))
+        concat_features = self.conv(torch.cat([comb_l2_l3, output0], 1))
 
         classifier = self.classifier(concat_features)
         return classifier

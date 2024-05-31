@@ -2,10 +2,6 @@ from graphviz import Digraph
 import torch
 from torch.autograd import Variable
 
-'''
-Not written by me
-Copied from here: https://github.com/szagoruyko/pytorchviz
-'''
 
 def make_dot(var, params=None):
     """ Produces Graphviz representation of PyTorch autograd graph

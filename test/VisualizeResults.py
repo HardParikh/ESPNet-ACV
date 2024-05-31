@@ -3,7 +3,7 @@ import torch
 import glob
 import cv2
 import os
-import Model as Net  # Ensure this is the correct import for your model
+import Model as Net
 from argparse import ArgumentParser
 
 # Define your color palette
@@ -41,16 +41,15 @@ def evaluateModel(args, model, up, image_list):
 
             classMap_numpy = img_out[0].max(0)[1].byte().cpu().numpy()
 
-            if i % 100 == 0:
-                print(f"Processed {i} images")
+            print(f"Processed {i} images")
 
             name = os.path.basename(imgName)
             file_path_base = os.path.join(args.savedir, name.replace(args.img_extn, 'png'))
 
             if args.colored:
-                classMap_numpy_color = np.zeros((1024, 2048, 3), dtype=np.uint8)  # Assumes output size is 512x1024
+                classMap_numpy_color = np.zeros((1024, 2048, 3), dtype=np.uint8)
                 for idx, color in enumerate(pallete):
-                    classMap_numpy_color[classMap_numpy == idx] = color[::-1]  # BGR to RGB
+                    classMap_numpy_color[classMap_numpy == idx] = color[::-1]
                 cv2.imwrite(file_path_base.replace('.png', '_color.png'), classMap_numpy_color)
                 if args.overlay:
                     overlayed = cv2.addWeighted(img_orig, 0.5, classMap_numpy_color, 0.5, 0)
@@ -61,17 +60,15 @@ def evaluateModel(args, model, up, image_list):
             cv2.imwrite(file_path_base, classMap_numpy)
 
 def main(args):
-    # Read all the images in the specified directory with the given extension
+    args.gpu = args.gpu and torch.cuda.is_available()
     image_list = glob.glob(os.path.join(args.data_dir, f'*.{args.img_extn}'))
 
-    # Initialize the upsampling module if necessary
     up = None
     if args.modelType == 2:
         up = torch.nn.Upsample(scale_factor=8, mode='bilinear')
         if args.gpu:
             up = up.cuda()
 
-    # Determine model to load based on modelType
     model_class = Net.ESPNet_Encoder if args.modelType == 2 else Net.ESPNet
     model = model_class(args.classes, args.p, args.q)
     model_subdir = 'encoder' if args.modelType == 2 else 'decoder'
@@ -79,7 +76,7 @@ def main(args):
 
     # Check if the weight file exists
     if not os.path.isfile(model_weight_file):
-        print(f'Pre-trained model file does not exist: {model_weight_file}')
+        print(f'Trained model file does not exist: {model_weight_file}')
         return  # Exit if model weights not found
 
     # Load the model weights
@@ -111,9 +108,9 @@ if __name__ == '__main__':
     parser.add_argument('--savedir', default='./results', help='Directory to save the results')
     parser.add_argument('--gpu', default=True, type=bool, help='Run on CPU or GPU. If TRUE, then GPU.')
     parser.add_argument('--decoder', type=bool, default=True, help='True if ESPNet. False for ESPNet-C')
-    parser.add_argument('--weightsDir', default='../pretrained/', help='Pretrained weights directory.')
+    parser.add_argument('--weightsDir', default='../trained_weights/', help='trained_weights weights directory.')
     parser.add_argument('--p', default=2, type=int, help='Depth multiplier. Supported only 2')
-    parser.add_argument('--q', default=8, type=int, help='Depth multiplier. Supported only 3, 5, 8')
+    parser.add_argument('--q', default=3, type=int, help='Depth multiplier. Supported only 3, 8')
     parser.add_argument('--cityFormat', default=True, type=bool, help='If you want to convert to cityscape original label ids')
     parser.add_argument('--colored', default=True, type=bool, help='If you want to visualize the segmentation masks in color')
     parser.add_argument('--overlay', default=True, type=bool, help='If you want to visualize the segmentation masks overlayed on top of the RGB image')

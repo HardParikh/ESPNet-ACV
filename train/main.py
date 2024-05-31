@@ -14,7 +14,7 @@ from argparse import ArgumentParser
 from IOUEval import iouEval
 import torch.optim.lr_scheduler
 
-__author__ = "Sachin Mehta"
+
 
 def val(args, val_loader, model, criterion):
     '''
@@ -24,7 +24,6 @@ def val(args, val_loader, model, criterion):
     :param criterion: loss function
     :return: average epoch loss, overall pixel-wise accuracy, per class accuracy, per class iu, and mIOU
     '''
-    #switch to evaluation mode
     model.eval()
 
     iouEvalVal = iouEval(args.classes)
@@ -164,7 +163,7 @@ def trainValidateSegmentation(args):
         model = net.ESPNet_Encoder(args.classes, p=p, q=q)
         args.savedir = args.savedir + '_enc_' + str(p) + '_' + str(q) + '/'
     else:
-        model = net.ESPNet(args.classes, p=p, q=q, encoderFile=args.pretrained)
+        model = net.ESPNet(args.classes, p=p, q=q, encoderFile=args.trained_weights)
         args.savedir = args.savedir + '_dec_' + str(p) + '_' + str(q) + '/'
 
     if args.onGPU:
@@ -207,9 +206,7 @@ def trainValidateSegmentation(args):
         myTransforms.Scale(1024, 512),
         myTransforms.RandomCropResize(32),
         myTransforms.RandomFlip(),
-        #myTransforms.RandomCrop(64).
         myTransforms.ToTensor(args.scaleIn),
-        #
     ])
 
     trainDataset_scale1 = myTransforms.Compose([
@@ -217,9 +214,7 @@ def trainValidateSegmentation(args):
         myTransforms.Scale(1536, 768), # 1536, 768
         myTransforms.RandomCropResize(100),
         myTransforms.RandomFlip(),
-        #myTransforms.RandomCrop(64),
         myTransforms.ToTensor(args.scaleIn),
-        #
     ])
 
     trainDataset_scale2 = myTransforms.Compose([
@@ -227,9 +222,7 @@ def trainValidateSegmentation(args):
         myTransforms.Scale(1280, 720), # 1536, 768
         myTransforms.RandomCropResize(100),
         myTransforms.RandomFlip(),
-        #myTransforms.RandomCrop(64),
         myTransforms.ToTensor(args.scaleIn),
-        #
     ])
 
     trainDataset_scale3 = myTransforms.Compose([
@@ -237,19 +230,14 @@ def trainValidateSegmentation(args):
         myTransforms.Scale(768, 384),
         myTransforms.RandomCropResize(32),
         myTransforms.RandomFlip(),
-        #myTransforms.RandomCrop(64),
         myTransforms.ToTensor(args.scaleIn),
-        #
     ])
 
     trainDataset_scale4 = myTransforms.Compose([
         myTransforms.Normalize(mean=data['mean'], std=data['std']),
         myTransforms.Scale(512, 256),
-        #myTransforms.RandomCropResize(20),
         myTransforms.RandomFlip(),
-        #myTransforms.RandomCrop(64).
         myTransforms.ToTensor(args.scaleIn),
-        #
     ])
 
 
@@ -257,11 +245,8 @@ def trainValidateSegmentation(args):
         myTransforms.Normalize(mean=data['mean'], std=data['std']),
         myTransforms.Scale(1024, 512),
         myTransforms.ToTensor(args.scaleIn),
-        #
     ])
 
-    # since we training from scratch, we create data loaders at different scales
-    # so that we can generate more augmented data and prevent the network from overfitting
 
     trainLoader = torch.utils.data.DataLoader(
         myDataLoader.MyDataset(data['trainIm'], data['trainAnnot'], transform=trainDataset_main),
@@ -297,7 +282,6 @@ def trainValidateSegmentation(args):
             print("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resumeLoc)
             start_epoch = checkpoint['epoch']
-            #args.lr = checkpoint['lr']
             model.load_state_dict(checkpoint['state_dict'])
             print("=> loaded checkpoint '{}' (epoch {})"
                 .format(args.resume, checkpoint['epoch']))
@@ -315,7 +299,6 @@ def trainValidateSegmentation(args):
     logger.flush()
 
     optimizer = torch.optim.Adam(model.parameters(), args.lr, (0.9, 0.999), eps=1e-08, weight_decay=5e-4)
-    # we step the loss by 2 after step size is reached
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_loss, gamma=0.5)
 
 
@@ -326,9 +309,6 @@ def trainValidateSegmentation(args):
         for param_group in optimizer.param_groups:
             lr = param_group['lr']
         print("Learning rate: " +  str(lr))
-
-        # train for one epoch
-        # We consider 1 epoch with all the training data (at different scales)
         train(args, trainLoader_scale1, model, criteria, optimizer, epoch)
         train(args, trainLoader_scale2, model, criteria, optimizer, epoch)
         train(args, trainLoader_scale4, model, criteria, optimizer, epoch)
@@ -398,7 +378,7 @@ if __name__ == '__main__':
     parser.add_argument('--logFile', default='trainValLog.txt', help='File that stores the training and validation logs')
     parser.add_argument('--onGPU', default=True, help='Run on CPU or GPU. If TRUE, then GPU.')
     parser.add_argument('--decoder', type=bool, default=False,help='True if ESPNet. False for ESPNet-C') # False for encoder
-    parser.add_argument('--pretrained', default='../pretrained/encoder/espnet_p_2_q_8.pth', help='Pretrained ESPNet-C weights. '
+    parser.add_argument('--trained_weights', default='../trained_weights/encoder/espnet_p_2_q_8.pth', help='trained_weights ESPNet-C weights. '
                                                                               'Only used when training ESPNet')
     parser.add_argument('--p', default=2, type=int, help='depth multiplier')
     parser.add_argument('--q', default=8, type=int, help='depth multiplier')

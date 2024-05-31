@@ -2,8 +2,6 @@ import numpy as np
 import cv2
 import pickle
 
-__author__ = "Sachin Mehta"
-
 class LoadData:
     '''
     Class to laod the data
@@ -52,8 +50,6 @@ class LoadData:
         max_val_al = 0
         with open(self.data_dir + '/' + fileName, 'r') as textFile:
             for line in textFile:
-                # we expect the text file to contain the data in following format
-                # <RGB Image>, <Label Image>
                 line_arr = line.split(',')
                 img_file = ((self.data_dir).strip() + '/' + line_arr[0].strip()).strip()
                 label_file = ((self.data_dir).strip() + '/' + line_arr[1].strip()).strip()
@@ -91,20 +87,13 @@ class LoadData:
                 no_files += 1
 
         if trainStg == True:
-            # divide the mean and std values by the sample space size
             self.mean /= no_files
             self.std /= no_files
 
-            #compute the class imbalance information
             self.compute_class_weights(global_hist)
         return 0
 
     def processData(self):
-        '''
-        main.py calls this function
-        We expect train.txt and val.txt files to be inside the data directory.
-        :return:
-        '''
         print('Processing training data')
         return_val = self.readFile('train.txt', True)
 
